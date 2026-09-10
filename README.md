@@ -42,8 +42,8 @@ look like, proceed with caution and please consult an expert.
 ## Install
 
 ```
-/plugin marketplace add fastplotlib/fastplotlib-skills
-/plugin install fastplotlib@fastplotlib-skills
+/plugin marketplace add fastplotlib/claude-skills
+/plugin install fastplotlib@claude-skills
 ```
 
 That is a one-time setup. Afterwards Claude loads the skill by itself whenever you ask for a
