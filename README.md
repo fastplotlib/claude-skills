@@ -53,7 +53,7 @@ fastplotlib visualization — you do not need to mention it. To load it explicit
 /fastplotlib:fastplotlib
 ```
 
-## What is in it
+## Overview
 
 `SKILL.md` holds the core material: how to choose between a `Figure` and an `NDWidget`, which
 graphic to use for which data shape, the four rules that decide whether the code is fast, and the
@@ -73,7 +73,3 @@ Detailed material lives in `references/` and is read only when it is relevant:
 | `namespace-and-backends.md` | the `fpl.` namespace, notebooks vs scripts, GPU selection, transparency, coordinate spaces |
 | `utils.md` | colormap and array helpers |
 | `neuroscience.md` | modality-by-modality recipes, pynapple/nemos/spikeinterface integration, timebase discipline |
-
-## License
-
-Apache-2.0, matching fastplotlib. See [LICENSE](LICENSE).
