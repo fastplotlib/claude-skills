@@ -1,0 +1,21 @@
+{
+  "name": "fastplotlib-skills",
+  "owner": {
+    "name": "fastplotlib",
+    "url": "https://github.com/fastplotlib"
+  },
+  "plugins": [
+    {
+      "name": "fastplotlib",
+      "source": "./plugins/fastplotlib",
+      "description": "Guidance for writing correct, performant fastplotlib code for interactive scientific visualization, including multi-modal neuroscience visualization with the NDWidget.",
+      "category": "visualization",
+      "tags": [
+        "fastplotlib",
+        "visualization",
+        "gpu",
+        "neuroscience"
+      ]
+    }
+  ]
+}

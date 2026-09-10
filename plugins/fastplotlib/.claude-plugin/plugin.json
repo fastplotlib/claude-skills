@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "fastplotlib",
+  "displayName": "fastplotlib",
+  "version": "0.1.0",
+  "description": "Guidance for writing correct, performant fastplotlib code for interactive scientific visualization, including multi-modal neuroscience visualization with the NDWidget.",
+  "author": {
+    "name": "Kushal Kolar"
+  },
+  "homepage": "https://www.fastplotlib.org",
+  "repository": "https://github.com/fastplotlib/fastplotlib-skills",
+  "license": "Apache-2.0",
+  "keywords": [
+    "fastplotlib",
+    "visualization",
+    "plotting",
+    "gpu",
+    "pygfx",
+    "wgpu",
+    "webgpu",
+    "neuroscience",
+    "imaging",
+    "calcium imaging",
+    "electrophysiology",
+    "behavior analysis",
+    "ethology"
+  ]
+}
