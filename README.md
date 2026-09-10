@@ -8,7 +8,7 @@ Without it, LLMs tend to write fastplotlib code with matplotlib habits or other 
 array reassigned on every frame, hand-rolled sliders, and APIs that don't exist. This plugin
 supplies the current API, the performance rules, and a long list of anti-patterns.
 
-# Scope, responsibility and scientific integrity
+# SCOPE, RESPONSIBILITY & SCIENTIFIC INTEGRITY
 
 This skill helps write fastplotlib code. It cannot tell anyone whether the result is scientifically
 correct. Scientific integrity is **your** responsibility as the user of this tool.
