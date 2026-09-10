@@ -16,13 +16,12 @@ correct. Scientific integrity is **your** responsibility as the user of this too
 - **Verifying the scientific integrity of anything you build with LLM/AI tools is your
   responsibility.** It is not the tool's, not this skill's, and not the library's.
 - **It is very easy to create visualizations that look right at first glance but are subtly
-  wrong.** An axis in the wrong units, two modalities aligned incorrectly, a colormap that
-  implies structure the data does not have, a `vmin`/`vmax` that clips the effect you are
-  looking for. This is not an exhaustive list. None of these raise an error,
-  and _none of them are bugs_.
+  wrong.** Examples: setting data axes in the wrong units, incorrect alignment across datasets,
+  misleading colormaps that imply non-existent structure in the data, `vmin`/`vmax` that clips your data, etc.
+  This is not an exhaustive list. None of these raise an error, and _none of them are bugs_.
 - **LLMs sound confident.** When real humans communicate they indicate their confidence
-  in various ways. LLMs give no measure of that and they are confidently incorrect, which is hard
-  to read past even for an expert. LLMs also make judgement calls instead of asking
+  in various ways. LLMs give no measure of that and they are confidently incorrect, which can
+  even mislead experts if they're not paying attention. LLMs also make judgement calls instead of asking
   you, unless you tell it not to repeatedly. And it will quietly do something subtly different
   from what you asked. It will produce code that runs and _looks_ reasonable,
   which you will not notice unless you already know what the right answer is supposed to look like.
@@ -31,8 +30,8 @@ correct. Scientific integrity is **your** responsibility as the user of this too
   or the data you are working with.
 - **You must know how to perform sanity checks for your specific datasets and experiments.** Check
   the shapes, units, sampling rates and timebases yourself. Verify any data that has to be
-  cross-checked. **If you cannot say how you would detect an error, you are not in a position
-  to trust the output**.
+  cross-checked. **If you do not know how you would notice an error, you are not in a position
+  to trust or verify the output**.
 - **Garbage in, garbage out.** An LLM is not going to magically produce better analysis or
   visualization from bad data. It will render bad data confidently and attractively.
 
