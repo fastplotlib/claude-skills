@@ -75,9 +75,14 @@ image.reset_vmin_vmax()             # re-estimate from the data
   `(col, row)`.
 - Images added to the same subplot are automatically depth-ordered so later ones draw on top. If you
   set an image's z offset yourself, use a **non-integer** value or it will be overwritten.
-- `cpu_buffer=False` sends data straight to the GPU: much faster, but no partial updates
-  (`image.data[:10] = ...` raises), RGBA only, no `reset_vmin_vmax()`, and selectors cannot return
-  data under the selection.
+- `cpu_buffer=False` keeps no copy in system RAM and sends data straight to the GPU: much faster.
+  A regular `ImageGraphic` can use it, and `add_video`/`ImageYUVGraphic` are bufferless always.
+  Set the whole array — `image.data = new_data`, which must be the same shape as the original;
+  slice writes (`image.data[...] = ...`) raise. Some features aren't available: you must pass
+  `vmin`/`vmax` (no estimation is done locally in host RAM), `reset_vmin_vmax()` is not supported,
+  selectors cannot retrieve the data values under the selection, RGB `[rows, cols, 3]` is rejected
+  (wgpu has no RGB textures — use RGBA, or grayscale), and grayscale tooltip values are estimated
+  by inverting the colormap LUT rather than read from the data.
 
 Volumes: `mode` is `"mip"` (max intensity projection, default), `"minip"`, `"iso"` (isosurface,
 uses `threshold`/`step_size`/`emissive`/`shininess`), or `"slice"` (uses `plane`, the `(a, b, c, d)`

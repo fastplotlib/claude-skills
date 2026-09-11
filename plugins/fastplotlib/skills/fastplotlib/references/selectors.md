@@ -11,13 +11,12 @@ Verified against the current checkout. Check this table before promising a user 
 | `ImageVisibilitySelector` | ✅ |
 | `VisibilitySelector` on a `LineCollection` / `ScatterCollection` | ✅ |
 | `SelectionVector` with a bare selector, `(sel, 1-D array)`, `(sel, dict)`, or `(sel, fwd, inv)` | ✅ |
-| `Cursor.add_subplot`, `cursor.position` | ✅ |
+| `Cursor.add_subplot`, `cursor.remove_subplot`, `cursor.position` | ✅ |
 | `VisibilitySelector` on a `LineStack` / `ScatterStack` | ❌ `ValueError` in `_restack` (the whole 3-vector `separation` is added to a scalar distance). Use a `LineCollection` with explicit `offsets`. |
 | `PositionsHighlightSelector` on a line or scatter | ❌ `TypeError` — no positions graphic is built with a `Highlightable*` material, so there is nothing for it to write into |
 | `CollectionHighlightSelector` | ❌ silently does nothing, same cause: `_update_highlight_buffers` skips every sub-graphic whose material is not `Highlightable*` |
 | `ImageHighlightSelector` free mode with `cols` alone | ❌ `TypeError`; `rows` works. Mixing `rows` and `cols` requires equal lengths |
-| `SelectionVector` with `(selector, single_callable)` | ❌ `ValueError` — needs both directions. the `selection_tools/visibility_selector` gallery example uses this broken form |
-| `Cursor.remove_subplot()`, `Cursor.clear()` | ❌ `KeyError` |
+| `SelectionVector` with `(selector, single_callable)` | ❌ `ValueError` — needs both directions |
 
 To highlight lines or scatters until the material situation is fixed, write the colors directly
 (`collection.colors[selected] = "w"`) or toggle visibility with a `VisibilitySelector` on a
@@ -172,8 +171,7 @@ sv.append(master_index)
 Four accepted forms, and only four: a bare selector, a `(selector, 1-D int array)` where the array
 index is the master index and the value is the local index, a `(selector, dict)`, or a
 `(selector, forward, inverse)` triple of callables. **A `(selector, single_callable)` 2-tuple
-raises** — the inverse cannot be derived. the `selection_tools/visibility_selector` gallery example uses
-that broken form; do not copy it.
+raises** — the inverse cannot be derived.
 
 ## Reacting to a highlight/visibility selection
 

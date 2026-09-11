@@ -176,7 +176,6 @@ ndw["video"].add_video(
     dims=("time", "m", "n"),
     display_dims=("m", "n"),
     slider_maps={"time": frame_timestamps},      # seconds -> frame index
-    compute_histogram=False,
     name="video",
 )
 
@@ -231,7 +230,7 @@ ndw = fpl.NDWidget(ranges={"time": (start, stop, 1 / 30)}, extents=extents, size
 # 2. video — YUV planes straight to the GPU, no per-frame RGB conversion
 ndw["video"].add_video(
     vid, dims=("time", "m", "n"), display_dims=("m", "n"),
-    slider_maps={"time": vid.time}, compute_histogram=False, name="frame",
+    slider_maps={"time": vid.time}, name="frame",
 )
 
 # 3. pose tracking, overlaid on the same subplot, showing a 2 second display_window of positions
@@ -322,7 +321,8 @@ if __name__ == "__main__":
 
 Five things in there generalize to any multi-modal viewer:
 
-- **Panels are named, laid out as fractions**, and addressed by name everywhere afterwards.
+- **Subplots are named, laid out with fractional extents or a grid**, and addressed by name
+  everywhere afterwards.
 - **Each modality maps the shared reference index onto its own indices** with its own recorded timestamps.
   Nothing is resampled onto a common rate.
 - **Anything heatmap-shaped goes through `heatmap_to_positions` + `graphic_type=fpl.ImageGraphic`**
@@ -336,15 +336,15 @@ Five things in there generalize to any multi-modal viewer:
 
 ```python
 add_nd_image(data, dims, display_dims, rgb_dim=None, window_funcs=None, window_order=None,
-             spatial_func=None, compute_histogram=True, slider_maps=None,
+             spatial_func=None, compute_histogram=True, clim_quantiles=None, slider_maps=None,
              slicer_type=NDImageSlicer, colorspace="srgb", colorrange="full",
              name=None, graphic_kwargs=None)
 
 add_video(data, dims, display_dims, rgb_dim=None, colorspace="yuv420p", colorrange="limited",
           slicer_type=VideoSlicer, window_funcs=None, window_order=None, spatial_func=None,
-          compute_histogram=True, slider_maps=None, name=None, graphic_kwargs=None)
+          slider_maps=None, name=None, graphic_kwargs=None)
 
-add_nd_timeseries(data, dims, display_dims, *, graphic_type=LineStack, x_range_mode="auto",
+add_nd_timeseries(data, dims, display_dims, *args, graphic_type=LineStack, x_range_mode="auto",
                   slicer=NDPositionsSlicer, display_window=10, window_funcs=None,
                   window_order=None, spatial_func=None, slider_maps=None,
                   max_display_datapoints=1000, datapoints_window_func=None,
@@ -352,11 +352,18 @@ add_nd_timeseries(data, dims, display_dims, *, graphic_type=LineStack, x_range_m
                   thickness=None, sizes=None, markers=None,
                   name=None, graphic_kwargs=None, slicer_kwargs=None)
 
-add_nd_lines(...)     # same, graphic_type is LineCollection, no x_range_mode
-add_nd_scatter(...)   # same, graphic_type is ScatterCollection, no thickness
+# both take the same arguments as add_nd_timeseries, minus `graphic_type` and `x_range_mode`,
+# which they do not have — the graphic is fixed
+add_nd_lines(data, dims, display_dims, *args, ...)      # -> LineCollection, keeps `thickness`
+add_nd_scatter(data, dims, display_dims, *args, ...)    # -> ScatterCollection, `sizes`/`markers`, no `thickness`
 add_nd_vectors(data, dims, display_dims, window_funcs=None, window_order=None,
                spatial_func=None, slider_maps=None, name=None, graphic_kwargs=None)
 ```
+
+On the three positional methods, `*args` is forwarded to the slicer's constructor after `data`,
+`dims` and `display_dims` — that is how `PandasSlicer` receives its `columns`. The default slicer
+takes none, so leave it empty unless you passed a `slicer=`. Everything after `*args` is
+keyword-only.
 
 `display_dims` picks the graphic for images:
 
@@ -364,7 +371,7 @@ add_nd_vectors(data, dims, display_dims, window_funcs=None, window_order=None,
 |---|---|
 | `(rows, cols)` | grayscale `ImageGraphic` |
 | `(rows, cols, rgb_dim)` | RGB(A) `ImageGraphic` — you must also pass `rgb_dim=` |
-| `(z, rows, cols)` | `ImageVolumeGraphic` — **currently broken, see Known issues** |
+| `(z, rows, cols)` | `ImageVolumeGraphic` |
 | a YUV `colorspace` | `ImageYUVGraphic` |
 
 For positions and timeseries, `display_dims` is always
@@ -381,7 +388,14 @@ converts `[n_rows, n_timepoints]` into the `[n_rows, n_timepoints, 2]` these exp
 sets the index for every graphic on that dim.
 
 `graphic_kwargs` is passed to the underlying graphic, e.g.
-`graphic_kwargs={"cmap": "gray", "interpolation": "linear", "metadata": {...}}`.
+`graphic_kwargs={"cmap": "gray", "interpolation": "linear", "metadata": {...}}`. Anything the
+graphic type does not accept is dropped, so a `thickness` survives a switch from a `LineStack` to
+an `ImageGraphic` without raising.
+
+`clim_quantiles=(low, high)` on `add_nd_image` sets vmin/vmax from those quantiles of the histogram
+instead of its full range, which is what you want when a few outlying pixels would otherwise flatten
+the contrast. Quantiles are in `[0, 1]`, it needs `compute_histogram=True`, it overrides any
+vmin/vmax in `graphic_kwargs`, and the limits are recomputed whenever the histogram is.
 
 ## `slider_maps` — get the units right or the plot is wrong
 
@@ -498,6 +512,42 @@ Set graphic properties through the `NDPositions` wrapper (`ndg.colors`, `ndg.cma
 `ndg.thickness`, `ndg.markers`) when the value should be re-applied on every window update; set them
 on `ndg.graphic` for a one-off change.
 
+## Marking events: plain graphics that do not follow the sliders
+
+Not everything in a subplot has to be an `NDGraphic`. An ordinary graphic added to the subplot is
+drawn in the same coordinates as the `NDGraphic`s already there and simply stays where you put it,
+which is what you want for anything marking a fixed position rather than tracking the index.
+
+`add_inf_line` is the one you will reach for most: stimulus onsets, reward delivery, trial
+boundaries, a threshold.
+
+**Its positions must be in the reference space of the dim it marks.** A timeseries subplot draws its
+x axis in the reference units of the `p` dim, so if the reference space is seconds then the event
+times are in seconds — the same numbers you would put in `ranges`, not array indices:
+
+```python
+ndw = fpl.NDWidget(ranges={"time": (0.0, 600.0, 1 / 30)}, extents=extents)   # seconds
+
+ndw["traces"].add_nd_timeseries(
+    traces, ("cell", "time", "xy"), ("cell", "time", "xy"),
+    slider_maps={"time": trace_timestamps},        # seconds -> sample index
+    display_window=10.0, x_range_mode="auto", name="traces",
+)
+
+# seconds, on the same clock as `ranges`. Not sample indices, and not an NDGraphic
+stim_times = np.array([12.4, 87.1, 233.9, 410.0])
+
+ndw.figure["traces"].add_inf_line(
+    stim_times, axis="x", colors="r", dash_pattern="--", name="stim"
+)
+```
+
+Getting the units wrong here is silent: event times passed as sample indices land at those numbers
+of seconds, somewhere off the side of the data, and nothing raises.
+
+It works the same on a heatmap subplot, whose `ImageGraphic` is offset and scaled onto those same x
+coordinates. `ndw.figure[name]` and `ndw[name].subplot` are the same `Subplot`.
+
 ## Anti-patterns
 
 | Do not | Do instead |
@@ -509,7 +559,7 @@ on `ndg.graphic` for a one-off change.
 | convert time to indices on your own, e.g. `int(time * sampling_freq)`, when you have timestamps | `slider_maps={"time": timestamps}` |
 | load a whole session and slice it in numpy | pass the lazy reader, and set `display_window` for positional data |
 | `display_window=None` on a large dataset/array | a window in seconds; `None` reads everything |
-| `compute_histogram=True` for video | `False` — it needs random frame access and is very slow |
+| pass `compute_histogram` to `add_video` | it has no such argument — a video is never histogrammed |
 | one `NDWidget` per modality with separate sliders | one `ranges`, then `indices=ndw.indices` for the rest |
 | `add_nd_image` for a video file | use `add_video` and the `asyncvideo` library (https://pypi.org/project/asyncvideo/), YUV planes straight to the GPU, no per-frame RGB conversion, order of magnitude faster |
 | a `for` loop over `ndg.graphic` to set a property every frame | pass the property to `add_nd_*` so it is re-applied by the window machinery |
@@ -518,12 +568,15 @@ on `ndg.graphic` for a one-off change.
 ## Custom data sources
 
 `ndp_extras.Pandas` (available when pandas is installed) reads positional data from DataFrame
-columns instead of an array — one `(x_col, y_col)` tuple per graphic, which is exactly the shape of
-pose-tracking output. The third positional becomes the slicer's `columns`:
+columns instead of an array — one `(x_col, y_col)` tuple per graphical element, which is exactly the
+shape of pose-tracking output. A DataFrame has no dims of its own to name, so `dims` and
+`display_dims` are the same three names, and the next positional arg is the slicer's `columns`:
 
 ```python
 ndw[0, 0].add_nd_scatter(
-    df, ("l", "time", "d"),
+    df,
+    ("l", "time", "d"),                            # dims
+    ("l", "time", "d"),                            # display_dims: (n_graphics, p, value dim)
     [(f"{k}_x", f"{k}_y") for k in keypoints],     # -> PandasSlicer(columns=...)
     slicer=ndp_extras.Pandas,
     slider_maps={"time": df["times"].values},
@@ -531,16 +584,10 @@ ndw[0, 0].add_nd_scatter(
 )
 ```
 
-**This currently raises** — see Known issues. Until it is fixed, build the array yourself:
-
-```python
-xy = np.dstack([                                    # [n_keypoints, n_frames, 2]
-    np.stack([df[f"{k}_x"] for k in keypoints]),
-    np.stack([df[f"{k}_y"] for k in keypoints]),
-]).astype(np.float32)
-ndw[0, 0].add_nd_scatter(xy, ("kp", "time", "xy"), ("kp", "time", "xy"),
-                         slider_maps={"time": df["times"].values}, display_window=5.0)
-```
+Each entry in `columns` is one graphical element — one line, or one scatter — within the collection,
+and the `p` dim is the number of rows. `tooltip_columns`, one column name per graphical element,
+goes through `slicer_kwargs` and shows that column's value at the hovered datapoint, e.g. a
+per-keypoint tracking likelihood.
 
 ## Extending: custom slicers and graphics
 
@@ -557,7 +604,7 @@ Subclass the slicer whose output the graphic expects: `NDImageSlicer` for images
 `NDPositionsSlicer` for lines/scatters/timeseries, `NDVectorsSlicer` for vectors.
 
 This reads traces out of a `spikeinterface` recording, loading only the current display window into
-RAM (adapted from `ephys_utils.py` in the neuro examples repo):
+RAM:
 
 ```python
 import numpy as np
@@ -614,7 +661,10 @@ What a subclass must provide:
   `_ref_index_to_array_index(dim, value)` maps a single dim. Return a dict whose `"data"` key holds
   the array, shaped as `display_dims`.
 - **`shape`**, a dict keyed by dim name, and **`data`** if the object is not an array.
-  `_get_dw_slice` and `NDWSubplot._check_slider_dims` both read the dim sizes from `shape`.
+  `_get_dw_slice` reads the dim sizes from it.
+- **Explicit `ranges` for every dim.** Auto-ranging sizes a dim from `data.shape`, so it is skipped
+  when `data` is not an `ArrayProtocol` — which is the whole point of a custom slicer. A slider dim
+  with no range raises `KeyError` naming that dim.
 - Blocking reads go in `run_in_thread_pool(self._executor, fn, ...)`; a reader that returns a future
   is awaited with `wait_for_future`. Doing the read inline blocks the render loop and the sliders
   stutter.
@@ -634,28 +684,6 @@ returns it.
 
 If you only need a different data source for an existing representation, subclass the slicer and
 keep the graphic.
-
-## Known issues
-
-Verified against the current checkout. Work around them; do not try to fix them without asking.
-
-1. **Volumes through `add_nd_image` raise.** `display_dims=(z, rows, cols)` hits
-   `TypeError: Graphic.__init__() got an unexpected keyword argument 'colorspace'` — `_create_graphic`
-   passes `colorspace` to every image class, and `ImageVolumeGraphic` does not take it. Until it is
-   fixed, render `(rows, cols)` and leave `z` as a slider dim, or use a plain
-   `figure[0, 0].add_image_volume(...)` outside the widget.
-
-2. **`slicer=ndp_extras.Pandas` raises** from `NDWSubplot._check_slider_dims`, which treats the third
-   positional as dim names rather than columns and then indexes `data.shape` with them
-   (`IndexError: tuple index out of range`). Constructing `PandasSlicer(...)` directly works; only
-   the `add_nd_*` route is broken. Use the array workaround above.
-
-3. **Assigning `graphic.cmap` after construction desyncs the colorbar.** With
-   `compute_histogram=True` (the default for `add_nd_image`), `ndg.graphic.cmap = ...` raises inside
-   `ImguiColorbar._image_event_handler` (`Colormap.__eq__` on colormaps with different stop counts).
-   `rendercanvas` swallows it, so the image updates and the colorbar silently does not. **Pass the
-   colormap at construction instead**: `graphic_kwargs={"cmap": "gray_r", "vmin": 0, "vmax": 3}`.
-   That path is clean, and it accepts a `cmap.Colormap` object as well as a name.
 
 ## Migrating from `ImageWidget`
 

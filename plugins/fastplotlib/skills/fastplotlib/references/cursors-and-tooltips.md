@@ -59,25 +59,17 @@ cursor.enabled = False     # stop it following the pointer, without removing it
 cursor.position            # (x, y) in world space
 ```
 
-### Configure it in the constructor and then leave it alone
+### Changing it after it is attached
 
-This is the practical rule, and it is not a style preference — the property setters only touch
-subplots that are already attached, and several of them are broken in that state:
+Every property is settable at any time, before or after `add_subplot`: `color`, `alpha`, `mode`,
+`size`, `size_space`, `marker`, `edge_color`, `edge_width`, `enabled` and `position`. Setting
+`mode` rebuilds the world objects in every attached subplot and keeps each subplot's `transform`.
 
-| after `add_subplot`, in `"crosshair"` mode | |
-|---|---|
-| `cursor.color = ...` | ❌ `AttributeError: 'NoneType' object has no attribute 'color'` |
-| `cursor.alpha = ...` | ❌ `AttributeError: ... 'opacity'` |
-| `cursor.mode = ...` | ❌ `RuntimeError: dictionary changed size during iteration` |
-| `cursor.clear()` | ❌ same `RuntimeError` |
-| `size`, `size_space`, `marker`, `edge_color`, `edge_width`, `enabled`, `position` | ✅ |
+`remove_subplot(subplot)` detaches one subplot and hands tooltip control back to it; `clear()`
+detaches all of them.
 
-A crosshair cursor is a `pygfx.Group` of two infinite lines, so its `.material` is `None`; the
-`color` and `alpha` setters assume a single material and only work in `"marker"` mode. `mode` and
-`clear` both iterate the subplot dict while mutating it.
-
-All of them work *before* any subplot is attached, because the loop is empty — which is why passing
-everything to the constructor is safe. `remove_subplot(subplot)` works; `clear()` does not.
+A crosshair is a `pygfx.Group` of two infinite lines while a marker is a single `pygfx.Points`, so
+`marker`, `edge_color` and `edge_width` apply in `"marker"` mode only; the rest apply in both.
 
 ### One cursor per subplot
 
@@ -134,8 +126,6 @@ settable at any time.
 | Do not | Do instead |
 |---|---|
 | build a hover text with a `pointer_move` handler and a `TextGraphic` | set `graphic.tooltip_format`; every subplot already has a tooltip |
-| set `cursor.color` / `cursor.alpha` / `cursor.mode` after `add_subplot` | pass them to `fpl.Cursor(...)` |
-| `cursor.clear()` | `remove_subplot` per subplot, or just drop the reference |
 | add two `Cursor` instances to one subplot | one cursor, many subplots |
 | a `TextBox` per subplot for a static label | `subplot.add_text(...)`, which is a real graphic in world space |
 | leave the tooltip on over a video subplot| `subplot.tooltip.enabled = False` — pixel values are noise there |

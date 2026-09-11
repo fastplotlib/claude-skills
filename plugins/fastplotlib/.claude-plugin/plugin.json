@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "fastplotlib",
   "displayName": "fastplotlib",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Guidance for writing correct, performant fastplotlib code for interactive scientific visualization, including multi-modal neuroscience visualization with the NDWidget.",
   "author": {
     "name": "Kushal Kolar"

@@ -8,9 +8,15 @@ discipline, a recipe per modality, and out-of-core rules.
 
 ## Ground rules
 
-- Go through the fastplotlib codebase, the official fastplotlib examples, and the fastplotlib
-  documentation. `~/repos/fastplotlib` carries per-directory `CLAUDE.md` guides; the ones you will
-  need most are `fastplotlib/widgets/nd_widget/CLAUDE.md` and `fastplotlib/graphics/CLAUDE.md`.
+- Go through the [user guide](https://www.fastplotlib.org/ver/dev/user_guide/index.html), the
+  [examples gallery](https://www.fastplotlib.org/ver/dev/_gallery/index.html) and the
+  [API reference](https://www.fastplotlib.org/ver/dev/api/index.html) before writing code. The
+  reference files alongside this one carry the API detail; the ones you will need most are
+  `references/ndwidget.md` and `references/graphics.md`.
+- **Verify every call against the version the user actually has installed**, not from memory — the
+  API moves. `python -c "import fastplotlib as fpl; print(fpl.__file__)"` prints the source
+  location; read it for anything about the API you are not certain of — class and method names,
+  arguments, defaults, return types, and what a call actually does.
 - Use the coding and writing style of fastplotlib.
 - Do not over-engineer. Do not write low quality code.
 - Your ideas and code must be high quality, accurate, correct, concise, elegant and have no
@@ -57,7 +63,7 @@ modalities up.
 | individual spikes (time × depth/amplitude) | `[1, n_spikes, 2]` | `add_nd_timeseries(graphic_type=fpl.ScatterCollection)` |
 | raw/filtered extracellular traces | `[n_channels, n_samples, 2]` | custom `NDSlicer` over the recording → heatmap or `LineStack` |
 | LFP or audio spectrogram | `[n_freqs, n_times, 2]` | `add_nd_timeseries(graphic_type=fpl.ImageGraphic)` |
-| pose tracking / keypoints | DataFrame with `<kp>_x`, `<kp>_y` columns | `add_nd_scatter(slicer=ndp_extras.Pandas, columns=[...])` |
+| pose tracking / keypoints | `[n_keypoints, n_frames, 2]`, stacked from the `<kp>_x`/`<kp>_y` columns | `add_nd_scatter` |
 | ROI footprints / contours | list of `[K, 2]` pixel coords | `fpl.ImageHighlightSelector(selection_options={"pixels": contours})` |
 | ethogram / behavioral state | `[n_behaviors, n_times, 2]` integer codes | `add_nd_timeseries(graphic_type=fpl.ImageGraphic)` + a discrete colormap |
 | trial-aligned responses | `[n_trials, n_timepoints, 2]` | `add_nd_timeseries` |
@@ -95,7 +101,7 @@ ndw = fpl.NDWidget(ranges=ranges, extents=extents, size=(1400, 800))
 # 4. each modality maps the reference index onto its own array indices
 ndw["video"].add_video(
     video, dims=("time", "m", "n"), display_dims=("m", "n"),
-    slider_maps={"time": video.time}, compute_histogram=False, name="video",
+    slider_maps={"time": video.time}, name="video",
 )
 ndw["traces"].add_nd_timeseries(
     traces, ("cell", "time", "xy"), ("cell", "time", "xy"),
@@ -125,7 +131,7 @@ follows.
 | align modalities by index, or `int(t * fs)` | `slider_maps={"time": timestamps}` | clocks drift, frames drop; index alignment is silently wrong |
 | resample everything onto a common rate to plot it | let each subplot keep its own rate and map through its timestamps | resampling destroys the raw data and hides dropped frames |
 | bin spikes with a `for` loop or `np.histogram` | `tsgroup.count(bin_size=..., ep=...)` | pynapple already does it, correctly, with epochs |
-| write your own PSTH / correlogram / tuning curve / bandpass | `pynapple` (see `NEUROSCIENCE.md`) | these are solved and validated |
+| write your own PSTH / correlogram / tuning curve / bandpass | `pynapple` — see **Part 1 — Domain libraries** below | these are solved and validated |
 | build your own slider with ipywidgets or imgui | `fpl.NDWidget` | you lose async fetch, windowing, playback and sync |
 | one figure per modality, each with its own slider | one `ranges`, then `indices=ndw.indices` | otherwise the subplots drift apart |
 | `np.load` / `read_video` a whole session | a lazy reader plus `display_window` | sessions are larger than RAM and much larger than VRAM |
@@ -135,7 +141,7 @@ follows.
 | write colors into the data to show a selection, then restore them | `fpl.ImageHighlightSelector` / `fpl.CollectionHighlightSelector` | highlights on the GPU, leaves your colors intact |
 | rebuild ROI masks on every click | preload them as `selection_options` and select by index | the per-click work becomes an index write |
 | recompute an analysis inside an animation or index handler | precompute, cache, or recompute only on an explicit UI change | it runs every frame |
-| `compute_histogram=True` on video | `False` | needs random frame access; very slow on codecs |
+| pass `compute_histogram` to `add_video` | it has no such argument | a video is never histogrammed; it needs random frame access and is very slow on codecs |
 | a sequential colormap for categorical labels | a qualitative colormap (`tab10`, `Set1`) with integer `cmap_transform` | otherwise neighbouring labels look similar |
 | `np.asarray(gpu_array)` before reducing | `arr.max(axis=0)` | copies a GPU/torch array to host RAM |
 | `float64` data | `.astype(np.float32)` | cast and a warning on every upload |
@@ -215,8 +221,8 @@ A recording is already lazy and already array-like enough for a custom `NDSlicer
 
 `DemixingResults.from_hdf5(path)`, then `.to("cuda")` to keep the component arrays on the GPU. The
 arrays (`pmd_array`, `ac_array`, `residual_array`, `fluctuating_background_array`,
-`colorful_ac_array`) are lazy and torch-backed: **index them, never materialize them, never
-`np.asarray` them.** Frame timings come from the acquisition metadata and are assigned by you
+`colorful_ac_array`) are lazy and torch-backed: **index them, never load the entire movie or huge
+chunks into RAM, never `np.asarray` them.** Frame timings come from the acquisition metadata and are assigned by you
 (`dmr.timings = np.load(...)`).
 
 ## Video readers
@@ -224,17 +230,22 @@ arrays (`pmd_array`, `ac_array`, `residual_array`, `fluctuating_background_array
 | reader | when |
 |---|---|
 | [`asyncvideo`](https://pypi.org/project/asyncvideo) `AsyncVideoReader(path, buffer_size=512)` | **the default.** Decodes ahead on a background thread, exposes `.shape` and `.time` |
-| `decord`-backed `LazyVideo` (`examples/lazyvideo.py`) | fallback when asyncvideo cannot open the file |
+| a `decord`-backed lazy reader of your own | fallback when asyncvideo cannot open the file |
 
 `add_video` sends YUV planes straight to the GPU instead of converting each frame to RGB, which is
 why it exists as a separate method.
+
+**Pass the same reader to every graphic that shows that video.** One video in three subplots needs
+one reader, not three: all three views ask for the same frame, so they share that one decode. A
+reader decodes one request at a time and a new frame supersedes the one still in flight, which is
+what keeps a slider drag responsive — frames you scrub past are never decoded.
 
 ## NWB, IBL/ONE
 
 NWB: read with pynapple (PyNWB underneath) so you get `TsGroup`/`Tsd`/`IntervalSet` objects
 directly, rather than raw h5py datasets.
 
-IBL/ONE session layout, as used by `examples/ibl.py`:
+IBL/ONE session layout:
 
 ```
 <subject>/<session>/raw_video_data/_iblrig_<camera>Camera.raw.mp4
@@ -260,6 +271,7 @@ pynapple, then hand over `.t` and `.values`.
 | `TsGroup` | a spike scatter (unit index vs time) | see the raster recipe below |
 | `TsdTensor` `[n_frames, m, n]` | a movie subplot | `add_nd_image(tsdtensor.values, ("time", "m", "n"), ("m", "n"), slider_maps={"time": tsdtensor.t})` |
 | `IntervalSet` | epoch boundaries | `add_inf_line(np.concatenate([ep.start, ep.end]), axis="x")` |
+| stimulus onsets, reward times, any event | 1D array of times in the reference space | `subplot.add_inf_line(times, axis="x")`, a plain graphic, not an `NDGraphic` |
 | `IntervalSet` | shaded epochs | one `add_polygon` per interval, or a `PolygonGraphic` collection |
 | tuning curves (DataFrame) | curves per unit | `heatmap_to_positions(tc.values.T, xvals=tc.index.values)` |
 | `compute_perievent` output | trial-aligned traces | stack the aligned trials into `[n_trials, n_timepoints, 2]` |
@@ -302,7 +314,8 @@ Every figure that is subtly wrong is wrong here.
 
 # Part 4 — Recipes
 
-Each of these is in use in `examples/`. `examples/gerbils.py` is the reference for the current API.
+Each of these is drawn from a working multi-modal viewer. Verify every call against the installed
+version before using it.
 
 ## Spike raster from a TsGroup
 
@@ -321,14 +334,13 @@ ndg = ndw["raster"].add_nd_timeseries(
     slider_maps={"time": counts.t},
     display_window=10.0,
     x_range_mode="auto",
-    graphic_kwargs={"cmap": "gray_r"},      # set it here, not afterwards
+    graphic_kwargs={"cmap": "gray_r"},
     name="raster",
 )
 ```
 
-Set `cmap`, `vmin` and `vmax` through `graphic_kwargs` at construction. Assigning
-`ndg.graphic.cmap` afterwards works for the image but raises inside the colorbar's event handler,
-and `rendercanvas` swallows that, so the colorbar silently desyncs.
+`graphic_kwargs` is how you set `cmap`, `vmin` and `vmax` at construction. Setting them afterwards
+on `ndg.graphic` also works, and a colorbar added by `compute_histogram=True` follows the change.
 
 Bin size is a scientific choice. If you expose it in a UI, recompute through `spikes.count()` — do
 not rebin an already-binned array:
@@ -408,7 +420,7 @@ a channel × time heatmap, or `LineStack` for stacked traces. `graphic_type` can
 offer both. Set `vmin`/`vmax` explicitly (`-5, 5` for z-scored, or in µV) — an estimate from a
 subsample of a probe recording is meaningless.
 
-`examples/ephys_utils.py` has this pattern (against the older API).
+Pass `ranges` explicitly — a recording is not an `ArrayProtocol`, so no dim is auto-ranged from it.
 
 ## Calcium imaging: movie plus traces plus ROIs
 
@@ -418,7 +430,7 @@ Three subplots that share a reference index, plus a selection that links them:
 ndg_movie = ndw["movie"].add_nd_image(
     dmr.ac_array, ("time", "m", "n"), ("m", "n"),
     slider_maps={"time": dmr.timings},
-    graphic_kwargs={"cmap": "gray"},        # not ndg.graphic.cmap = ... afterwards
+    graphic_kwargs={"cmap": "gray"},
 )
 ndg_traces = ndw["traces"].add_nd_timeseries(
     fpl.utils.heatmap_to_positions(dff, xvals=dmr.timings),
@@ -454,14 +466,12 @@ def pick_roi(ev):
         sv.selection = [i]
 ```
 
-This is the pattern from `examples/visibility_selector.py` and `examples/masknmf_utils.py`. Two
-things make it fast: the ROI masks are uploaded once as `selection_options`, and the highlight is a
-GPU buffer write, not a recolor of the image data.
+Two things make this fast: the ROI masks are uploaded once as `selection_options`, and the highlight
+is a GPU buffer write, not a recolor of the image data.
 
 For multi-session alignment, register one selector per session with a mapping from the master index
 to that session's local index — a 1-D array (`array[master] -> local`), a dict, or a
-`(forward, inverse)` pair of callables. A `(selector, single_callable)` 2-tuple raises, which is
-what `examples/visibility_selector.py` does; do not copy that form.
+`(forward, inverse)` pair of callables. A `(selector, single_callable)` 2-tuple raises.
 
 **Highlighting lines and scatters does not work right now.** `PositionsHighlightSelector` raises and
 `CollectionHighlightSelector` silently does nothing, because no line or scatter graphic is built
@@ -478,7 +488,6 @@ ndg = ndw["behavior"].add_video(
     dims=("time", "m", "n"),
     display_dims=("m", "n"),
     slider_maps={"time": vid.time},
-    compute_histogram=False,          # random frame access on a codec is very slow
     name="video",
 )
 ndw["behavior"].subplot.tooltip.enabled = False    # pixel values are not interesting here
@@ -534,10 +543,24 @@ nd_kp = ndw["behavior"].add_nd_scatter(
 
 Overlay this on the video subplot — same subplot, same reference index — and the keypoints track the animal.
 
-There is a `PandasSlicer` intended to read the columns directly
-(`slicer=ndp_extras.Pandas` with the column tuples as the third positional, as in `kcenia.py`), but
-that route currently raises from `NDWSubplot._check_slider_dims`. Use the array form above until it
-is fixed.
+`PandasSlicer` reads the columns straight off the DataFrame, so you can skip building the array. A
+DataFrame has no dims of its own to name, so `dims` and `display_dims` are the same three names and
+the next positional arg is `columns`, one `(x_col, y_col)` tuple per keypoint. `tooltip_columns`
+puts that keypoint's likelihood in the tooltip:
+
+```python
+nd_kp = ndw["behavior"].add_nd_scatter(
+    df, ("kp", "time", "xy"), ("kp", "time", "xy"),
+    [(f"{k}_x", f"{k}_y") for k in keypoints],
+    slicer=ndp_extras.Pandas,
+    slider_maps={"time": df["times"].values},
+    display_window=5.0, cmap="tab10", name="keypoints",
+    slicer_kwargs={"tooltip_columns": [f"{k}_likelihood" for k in keypoints]},
+)
+```
+
+Pass `ranges` explicitly here — a DataFrame is not an `ArrayProtocol`, so no dim is auto-ranged from
+it, and a dim with no range raises `KeyError`.
 
 **Use the tracking likelihood as alpha** so low-confidence points fade instead of lying to the
 viewer. A windowed feature callable receives the data slice and the display-window slice and returns
@@ -591,9 +614,9 @@ color. A sequential colormap here is a bug, not a style choice.
 
 Label the rows with the behavior names via `subplot.axes.y.tick_format`, not a legend.
 
-For annotation *entry*, `examples/ethogram.py` is the working model: a dataframe mirrored to a csv, a
-rasterized array for display, an `ImguiWindow` form, and a double-click on the video or the ethogram
-to create or edit an entry.
+For annotation *entry*, the working shape is: a dataframe mirrored to a csv, a rasterized array for
+display, an `ImguiWindow` form, and a double-click on the video or the ethogram to create or edit an
+entry.
 
 ## Audio / vocalizations
 
@@ -651,13 +674,15 @@ ndw[0, 0].add_nd_image(
 Leaving `z` out of `display_dims` turns it into a second slider, which is what you usually want for
 multi-plane imaging — the user scrolls depth and time independently.
 
-`display_dims=(z, m, n)` is *meant* to render an `ImageVolumeGraphic` (with
-`graphic_kwargs={"mode": "mip"}` for a maximum-intensity projection), **but that path currently
-raises** `TypeError: Graphic.__init__() got an unexpected keyword argument 'colorspace'`. For a real
-3D render, use a plain figure outside the widget:
+Putting `z` **in** `display_dims` renders an `ImageVolumeGraphic` instead, so the whole stack is
+drawn at each timepoint and only `time` stays on a slider:
 
 ```python
-figure[0, 0].add_image_volume(volume_movie[frame_index], mode="mip", cmap="gray")
+ndw[0, 0].add_nd_image(
+    volume_movie, ("time", "z", "m", "n"), ("z", "m", "n"),   # a volume per timepoint
+    slider_maps={"time": frame_times},
+    graphic_kwargs={"cmap": "gray"},                          # `mode` defaults to "mip"
+)
 ```
 
 ---

@@ -144,4 +144,4 @@ Before handing over code that updates at frame rate:
 5. Large data goes through `NDWidget` with a `display_window`, not subsampled by hand.
 6. The animation function does the minimum per call; everything constant is precomputed.
 7. `mode="simple"` on scatters and `thin=True` on lines when there are very many of them.
-8. `compute_histogram=False` for video.
+8. `compute_histogram=False` on an `add_nd_image` whose reader is codec-backed.

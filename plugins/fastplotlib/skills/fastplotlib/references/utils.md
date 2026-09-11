@@ -40,7 +40,7 @@ build one with a `zip` over `itertools.cycle` unless you specifically want cycli
 
 - `subsample_array(arr, max_size, ignore_dims)` — subsamples while preserving dimensional
   proportions. Useful for a quick preview of something huge; not a substitute for `display_window`.
-- `calculate_figure_shape(n)` → a roughly square `(n_rows, n_cols)` for `n` subplots.
+- `calculate_figure_shape(n_subplots)` → a roughly square `(n_rows, n_cols)`.
 - `normalize_min_max(a)` → 0-1.
 
 ## What fastplotlib accepts as "data"

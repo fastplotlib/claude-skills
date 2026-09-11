@@ -112,7 +112,7 @@ with fpl.pause_events(graphic1, graphic2):
 | Symptom | Cause |
 |---|---|
 | the plot does not update | you wrote to `graphic.data.value` instead of `graphic.data[...]` |
-| `TypeError: 'Color' object has no attribute '__setitem__'` | the colors are uniform; assign an `[n, 4]` array first to make them per-datapoint |
+| `TypeError: 'Color' object does not support item assignment` | the colors are uniform; assign an `[n, 4]` array first to make them per-datapoint |
 | `TypeError` slicing `sizes` or `markers` | same — they are a `float` and a `str` in uniform mode |
 | `graphic.colors` is `None` | a `cmap` is set; there is no colors buffer in that mode |
 | "casting float64 array to float32" warning | pass `float32` |

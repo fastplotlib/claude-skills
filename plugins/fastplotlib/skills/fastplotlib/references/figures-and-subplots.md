@@ -102,9 +102,18 @@ subplot.title = "dataset 1"
 subplot.axes.visible = False         # hide axes/ticks
 subplot.axes.grids.visible = False   # keep axes, drop the grid
 subplot.toolbar = False              # hide the imgui toolbar strip
-subplot.background_color = "black"
+subplot.background_color = ["black"] # a SEQUENCE of 1, 2 or 4 colors — see below
 for subplot in figure: ...           # iterate
 ```
+
+`background_color` takes a **sequence** of 1, 2 or 4 colors: one for a flat background, two for
+`(bottom, top)`, four for `(bottom left, bottom right, top left, top right)`. Two easy mistakes:
+
+- `subplot.background_color = "black"` raises `ValueError: Unknown color: 'l'` — a bare string is
+  unpacked one character at a time. Pass `["black"]`.
+- `subplot.background_color = (0, 0, 0, 1)` does **not** raise, and is not read as one RGBA color:
+  it is four corner colors, giving three black corners and a **white** top-right one. Wrap it:
+  `[(0, 0, 0, 1)]`.
 
 `subplot.map_screen_to_world(ev)` and `map_world_to_screen(pos)` convert between a pointer event and
 data coordinates. `graphic.map_model_to_world` / `map_world_to_model` additionally apply that

@@ -62,6 +62,8 @@ in the `references/` directory next to this file.
 | an n-dimensional or multi-modal viewer | `${CLAUDE_SKILL_DIR}/references/ndwidget.md` |
 | interactive selection, highlighting | `${CLAUDE_SKILL_DIR}/references/selectors.md` |
 | GUI controls (sliders, buttons, colorbars) | `${CLAUDE_SKILL_DIR}/references/imgui-guis.md` |
+| writing any imgui UI — windows, toolbars, right-click menus | `${CLAUDE_SKILL_DIR}/references/imgui-guide.md` |
+| the arguments or flags of a specific imgui element | `${CLAUDE_SKILL_DIR}/references/imgui-elements.md` |
 | cursors, tooltips, text labels | `${CLAUDE_SKILL_DIR}/references/cursors-and-tooltips.md` |
 | the `fpl.` namespace, backends, GPUs, transparency, coordinate spaces | `${CLAUDE_SKILL_DIR}/references/namespace-and-backends.md` |
 | colormap and array helpers | `${CLAUDE_SKILL_DIR}/references/utils.md` |
