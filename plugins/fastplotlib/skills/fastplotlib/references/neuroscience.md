@@ -391,7 +391,8 @@ ndw["depth"].add_nd_timeseries(
 ```
 
 `max_display_datapoints` must be raised for spike scatters — the default of 1000 will decimate them
-into meaninglessness. Set `edge_width=0` on the graphic; marker edges dominate at these sizes.
+into meaninglessness — and `display_window` kept small, so that every spike in a short window is
+drawn. Set `edge_width=0` on the graphic; marker edges dominate at these sizes.
 
 ## Continuous extracellular traces
 
@@ -696,8 +697,12 @@ Sessions are larger than RAM and much larger than VRAM. The rules:
    `__getitem__` works.
 2. **Always set `display_window`** on positions/timeseries subplots, in reference units. This is the
    single setting that makes a 40-minute recording viewable.
-3. **`max_display_datapoints`** caps points per graphic by decimating the window. Default 1000; raise
-   it for spike scatters, leave it low for dense traces.
+3. **`max_display_datapoints`** is the most datapoints rendered per graphic, applied by decimating
+   the window. Default 1000, and it applies per graphic; somewhere in the 10^4 to 10^5 range is
+   probably fine for many use cases and GPUs. For sparse data such as a spike scatter, raise it and
+   keep `display_window` small so every spike in a short window is drawn; for dense traces the
+   default is right. Never set `max_display_datapoints` and `display_window` both to `None` on a
+   large dataset — that reads the whole array into RAM and defeats the lazy loading.
 4. **`window_funcs`** reduces over a slider dim on the fly — `{"time": (np.mean, 2.5)}` averages ±1.25
    s around the current position. The function must take `axis` and `keepdims` and must not drop the
    dimension.

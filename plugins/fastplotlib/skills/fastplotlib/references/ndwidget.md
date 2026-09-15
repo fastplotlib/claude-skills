@@ -424,8 +424,30 @@ On positions/timeseries, the datapoints dim `p` is both spatial and a slider dim
 
 - `display_window` — how much of `p` to render, **in `p`'s reference units** (e.g. `10.0` seconds).
   `None` renders everything. This is what makes a dataset bigger than VRAM viewable.
-- `max_display_datapoints` (default 1000) — caps the rendered points per graphic by setting the
-  *step* of the window slice. Raise it deliberately; the ephys examples use `1_000_000`.
+- `max_display_datapoints` (default 1000) — the most datapoints rendered per graphic, applied by
+  setting the *step* of the window slice. It is also a settable property, so it can be changed at
+  runtime.
+
+**Choosing `max_display_datapoints`.** It applies **per graphic**, so 200 traces at
+`max_display_datapoints=1000` is 200k points. Somewhere in the 10^4 to 10^5 range is probably fine
+for many use cases and GPUs, so raising it from the default is often reasonable. It works together
+with `display_window`:
+
+- dense continuous traces — a wider `display_window` with the default `max_display_datapoints` is
+  fine, the decimation is what keeps it performant.
+- sparse data such as a spike scatter — keep `max_display_datapoints` **large** and `display_window`
+  **small**, so every spike in a short window is drawn. Or bin the spikes and show them as a
+  heatmap, which does not decimate at all.
+
+**Never set both `max_display_datapoints=None` and `display_window=None` on a large dataset.** That
+reads the whole array into RAM and uploads it, which defeats the lazy loading the `NDWidget` exists
+for.
+
+The decimation keeps every Nth datapoint and discards the rest, so anything between the kept samples
+is not drawn — a brief transient or a narrow spike can disappear from a decimated trace with no
+indication. Where that matters, keep `display_window` small enough that nothing is decimated, or
+reduce with `datapoints_window_func=(np.max, "y", window_size)`, which is itself skipped once the
+window spans more than `2 * max_display_datapoints` indices.
 - `x_range_mode="auto"` couples the camera to the window: panning or zooming sets the window width
   and centre. `"fixed"` sets the range from `display_window` only. `None` leaves the camera alone.
 
@@ -500,6 +522,9 @@ ndg.graphic                # the underlying LineStack / ImageGraphic / ScatterCo
 ndg.graphic.tooltip_format = lambda pick_info: "..."
 ndg.data = new_array       # swap the data; dims and display_dims are kept
 ndg.display_window = 30.0
+ndg.max_display_datapoints = 5_000
+ndg.display_range          # read-only (min, max) of the window in `p`'s reference units, moves
+                           # with the sliders. None when display_window is None
 ndg.graphic_type = fpl.ImageGraphic   # switch representation live
 ndg.pause = True           # stop this graphic following the sliders
 
@@ -511,6 +536,30 @@ ndw.figure["traces"]       # the plain Subplot, for cameras/axes/imgui
 Set graphic properties through the `NDPositions` wrapper (`ndg.colors`, `ndg.cmap`, `ndg.sizes`,
 `ndg.thickness`, `ndg.markers`) when the value should be re-applied on every window update; set them
 on `ndg.graphic` for a one-off change.
+
+## The settings popup on an NDGraphic
+
+Right-clicking an `NDGraphic` opens a popup with its settings — graphic type, display window, pause,
+and the contrast controls for an image. The same settings are reachable from the subplot's
+right-click menu under **ND Graphics**, which is the one to use for a thin line or a sparse scatter
+that is hard to land a click on.
+
+The popup belongs to `ndg.graphic`, so you can append your own controls to it:
+
+```python
+from imgui_bundle import imgui
+
+@ndg.graphic.append_imgui_right_click()
+def extra(graphic):
+    imgui.separator()
+    if imgui.button("print current range"):
+        print(ndg.display_range)
+```
+
+`ndg.graphic.set_imgui_right_click(fn)` replaces the built-in popup instead of adding to it.
+
+Either way it is attached to the `Graphic`, and the `Graphic` is rebuilt whenever `graphic_type` or
+the shape of the data changes — a fresh popup comes with it, so re-apply your additions afterwards.
 
 ## Marking events: plain graphics that do not follow the sliders
 
