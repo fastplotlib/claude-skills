@@ -43,11 +43,14 @@ figure.show(maintain_aspect=False, autoscale=True)
 ```
 
 - **Notebook**: `figure.show()` must be the **last line of the cell**, or wrap it in
-  `display(...)`. Never call `fpl.loop.run()`. For several figures use
+  `IPython.display.display(...)`. Never call `fpl.loop.run()`. For several figures use
   `ipywidgets.VBox([fig1.show(), fig2.show()])` as the last line.
-- **Script**: `figure.show()` then `fpl.loop.run()` inside `if __name__ == "__main__":`.
-- `maintain_aspect=False` for any plot where x and y are different quantities. Leave it `True` for
-  images and spatial data or they will be distorted.
+- **Applications, scripts, and most other use-cases**: `figure.show()` then `fpl.loop.run()` inside
+  `if __name__ == "__main__":`. This is the normal case, not just "the script case".
+- **Interactive Qt window from a notebook or IPython**: `%gui qt` **before** importing fastplotlib.
+- `maintain_aspect=False` lets the x, y, and z scales change independently. Use it when the data in
+  each dimension are of a different magnitude, such as a timeseries, and for most large heatmaps.
+  `True` is usually right for images.
 - `figure.show(sidecar=True)` opens it in a jupyter sidecar.
 
 ## Cameras and controllers

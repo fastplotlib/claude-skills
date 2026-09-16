@@ -216,7 +216,16 @@ collection.graphics[3].cmap = "plasma"               # one graphic's own cmap
 (a `str` or a `list`), not a `Colormap` and not an indexable accessor.
 
 A qualitative colormap with an integer `cmap_transform` gives every graphic with the same label the
-same color — this is the idiom for cluster labels, cell types, or trial conditions.
+same color — this is the idiom for cluster labels, cell types, or trial conditions. The transform
+values index the colormap's colors directly, which means three things on a collection:
+
+- the transform must be an **integer** array, a float one raises `TypeError`
+- it must hold exactly `len(collection)` values, each within `[0, cmap.num_colors)`
+- `cmap_range` must be **`None`**, and passing one raises
+  `ValueError: cmap_range must be None for a qualitative colormap`
+
+That last one is the opposite of a single graphic, where `cmap_range=(0, cmap.num_colors)` is what
+pins label *k* to color *k*. On a collection it is already pinned and there is no range to give.
 
 ## Reading values back
 

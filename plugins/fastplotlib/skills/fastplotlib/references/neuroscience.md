@@ -136,7 +136,7 @@ follows.
 | one figure per modality, each with its own slider | one `ranges`, then `indices=ndw.indices` | otherwise the subplots drift apart |
 | `np.load` / `read_video` a whole session | a lazy reader plus `display_window` | sessions are larger than RAM and much larger than VRAM |
 | `display_window=None` on a 40-minute recording | a window in seconds | uploads the entire recording to the GPU |
-| one graphic per cell / unit / keypoint | a collection, and index across it | N buffers and N draw calls |
+| one graphic per cell / unit / keypoint | a collection, and index across it | N separate graphics to track instead of one |
 | `add_image(heatmap)` for a time-varying raster | `heatmap_to_positions` + `add_nd_timeseries(graphic_type=fpl.ImageGraphic)` | keeps it on the shared reference index with a real time axis |
 | write colors into the data to show a selection, then restore them | `fpl.ImageHighlightSelector` / `fpl.CollectionHighlightSelector` | highlights on the GPU, leaves your colors intact |
 | rebuild ROI masks on every click | preload them as `selection_options` and select by index | the per-click work becomes an index write |
@@ -609,9 +609,11 @@ def state_name(pick_info):
 nd_eth.graphic.tooltip_format = state_name
 ```
 
-A **qualitative** colormap with an integer code and an explicit `vmin`/`vmax` (or
-`cmap_range=(0, cmap.num_colors)` on a positions graphic) is what makes code *k* always the same
-color. A sequential colormap here is a bug, not a style choice.
+A **qualitative** colormap with an integer code is what makes code *k* always the same color, and
+how you pin it depends on the graphic. On an `ImageGraphic` pass an explicit `vmin`/`vmax`. On a
+single positions graphic pass `cmap_range=(0, cmap.num_colors)`. On a positions **collection** pass
+no `cmap_range` at all — the transform indexes the colors directly and a range raises. A sequential
+colormap here is a bug, not a style choice.
 
 Label the rows with the behavior names via `subplot.axes.y.tick_format`, not a legend.
 

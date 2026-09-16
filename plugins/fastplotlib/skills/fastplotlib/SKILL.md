@@ -121,8 +121,9 @@ Identical code runs in notebooks, Qt, glfw and wx.
 | a fixed plot of arrays that are already in memory | `fpl.Figure` + `subplot.add_<graphic>()` |
 | many similar things at once (traces, ROIs, trials, cells) | a **collection**: `add_line_collection`, `add_line_stack`, `add_scatter_collection`, `add_image_grid` |
 | an array with extra dimensions to scroll through (time, z, trial, channel) | `fpl.NDWidget` |
+| one or more image stacks (`[t]` or `[t, z]`, grayscale or RGB) to scroll | `fpl.ImageWidget` (a convenience over `NDWidget`) |
 | several datasets that must stay locked to a reference index or axes | `fpl.NDWidget` — one `ReferenceIndices`, many graphics |
-| data too big for RAM or VRAM | `fpl.NDWidget` with `display_window` |
+| data too big for RAM or VRAM | a lazy array-like + `fpl.NDWidget` or `fpl.ImageWidget` (image stacks); `display_window` for large positions |
 
 **If the request contains the word "browse", "scroll", "slider", "movie", "video", "frame by frame",
 or "synchronized", the answer is `NDWidget`.** Do not hand-roll sliders with ipywidgets or imgui when
@@ -203,7 +204,7 @@ figure[0, 0].add_line_stack(np.stack(traces), separation=(0, 2, 0), cmap="tab10"
 not
 
 ```python
-for i, t in enumerate(traces):                 # N buffers, N draw calls, N names
+for i, t in enumerate(traces):                 # N separate graphics and N names to track
     figure[0, 0].add_line(t, offset=(0, i * 2, 0))
 ```
 
@@ -245,8 +246,15 @@ line = subplot.add_line(data, cmap="tab10", cmap_transform=labels)     # qualita
   setting `colors` clears the cmap and vice versa. Check for `None` before reading `.colors`.
 - `cmap_transform` is the per-datapoint value the color is looked up from. `cmap_range` is the
   `(min, max)` of that value mapped onto the colormap; it defaults to the transform's own range.
-- For a **qualitative** colormap (`tab10`, `Set1`) the transform must be **integer labels** and you
-  usually want `cmap_range=(0, graphic.cmap.num_colors)` so label *k* always gets color *k*.
+- For a **qualitative** colormap (`tab10`, `Set1`) the transform must be **integer labels**, and
+  what makes label *k* always get color *k* differs between a single graphic and a collection.
+  - On a **single graphic**, pass `cmap_range=(0, graphic.cmap.num_colors)`. Without it the range
+    defaults to the transform's own `(min, max)`, which spreads the labels across the whole
+    colormap — labels `[0, 1, 2, 3]` against `tab10` come out as colors `[0, 3, 6, 9]`.
+  - On a **collection**, pass **no** `cmap_range` at all. The transform indexes the colormap's
+    colors directly, so label *k* is already color *k*, and passing a range raises
+    `ValueError: cmap_range must be None for a qualitative colormap`. The transform must also be
+    an integer array of exactly `len(collection)` values, each within `[0, cmap.num_colors)`.
 - On a collection, `collection.cmap = "viridis"` gives **each graphic one color** spread across the
   colormap. A list gives each graphic its own colormap along its points:
   `collection.cmap = ["jet"] * len(collection)`. For a single graphic, set it on the graphic:
@@ -296,7 +304,7 @@ anything that does not change.
 
 | Do not | Do instead | Why |
 |---|---|---|
-| loop `add_line` / `add_scatter` / `add_image` to draw N similar things | a collection (`add_line_stack`, `add_scatter_collection`, `add_image_grid`) | N buffers and N draw calls instead of one |
+| loop `add_line` / `add_scatter` / `add_image` to draw N similar things | a collection (`add_line_stack`, `add_scatter_collection`, `add_image_grid`) | one object whose every property indexes across all of the graphics, instead of N to track by hand |
 | `graphic.data = new_array` every frame | `graphic.data[:] = new_array` | reassigning reallocates the GPU buffer |
 | `subplot.clear()` then re-add graphics to update | mutate the existing graphic's properties | throws away all buffers and re-uploads everything |
 | `plt.show()`, `plt.figure()`, `ax.plot()` habits | `figure.show()`, `figure[0, 0].add_line(...)` | this is not matplotlib — `references/matplotlib-habits.md` |
@@ -310,8 +318,9 @@ anything that does not change.
 | `graphic.world_object.material.color = ...` | `graphic.colors = ...` | bypasses the feature, emits no event, desyncs state, does not mark new data for upload |
 | `del graphic` | `subplot.delete_graphic(graphic)` | otherwise VRAM and handlers leak |
 | building ipywidgets/imgui sliders for an nD array | `fpl.NDWidget` | you lose async fetch performance, windowing, playback, sync |
-| `fpl.ImageWidget` | `fpl.NDWidget` | `ImageWidget` is deprecated |
-| loading entire large data into RAM or subsampling | a lazy object + `NDWidget` | out-of-core is the point |
+| building your own sliders to scroll through image data or image stacks | `fpl.ImageWidget` | a one-liner over `NDWidget`, with playback, windowing and a histogram |
+| `fpl.ImageWidget` for timeseries, positions, or multi-modal data | `fpl.NDWidget` | `ImageWidget` only browses image stacks |
+| loading entire large data into RAM or subsampling | a lazy object + `fpl.NDWidget` or `fpl.ImageWidget` | out-of-core is the point |
 | `np.concatenate` all trials into one line | a collection with one entry per trial | keeps trials individually addressable |
 | `float64` arrays | `.astype(np.float32)` | cast + warning on every upload |
 | a new `Figure` per update | one figure, mutate its graphics | performance, this is not matplotlib, graphics persist and are mutable |

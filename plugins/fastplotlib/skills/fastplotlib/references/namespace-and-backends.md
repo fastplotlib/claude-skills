@@ -29,7 +29,7 @@ show/run pattern differs:
 
 | environment | pattern |
 |---|---|
-| script | `figure.show()`, then `fpl.loop.run()` under `if __name__ == "__main__":` |
+| scripts, applications, and most other use-cases | `figure.show()`, then `fpl.loop.run()` under `if __name__ == "__main__":` |
 | Jupyter | `figure.show()` as the **last line of the cell**; never `fpl.loop.run()` |
 | Jupyter, several figures | `ipywidgets.VBox([fig1.show(), fig2.show()])` as the last line |
 | Jupyter, in a sidecar | `figure.show(sidecar=True)` |
@@ -116,7 +116,9 @@ name works, plus many more.
 - A bare name can be ambiguous across catalogues and will warn (`"coolwarm"`). Use the namespaced
   form (`"matlab:jet"`, `"bids:plasma"`) when the exact colors matter.
 - `graphic.cmap` returns a `cmap.Colormap`, not the string you passed. `cmap.num_colors` is the
-  number of colors, which is what you want for `cmap_range` on a qualitative map.
+  number of colors, which is what you want for `cmap_range` on a qualitative map — but only on a
+  **single graphic**. On a collection a qualitative transform indexes the colors directly and
+  `cmap_range` must be `None`, otherwise it raises.
 - `fpl.utils.COLORMAP_NAMES` groups the catalogue into sequential / diverging / cyclic /
   qualitative / miscellaneous. Pick from the right group: sequential for magnitudes, diverging for
   signed values around a midpoint, **qualitative for labels**.

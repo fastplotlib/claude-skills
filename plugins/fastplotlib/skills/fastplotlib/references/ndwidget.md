@@ -602,6 +602,7 @@ coordinates. `ndw.figure[name]` and `ndw[name].subplot` are the same `Subplot`.
 | Do not | Do instead |
 |---|---|
 | build ipywidgets/imgui sliders for an nD array | `fpl.NDWidget` |
+| build your own sliders to scroll through image data or image stacks | `fpl.ImageWidget` |
 | keep your own `current_frame` and write `image.data = movie[i]` in a callback | `add_nd_image` / `add_video` with `slider_maps` |
 | `fpl.ImageWidget` for timeseries, positions, or multi-modal data | `fpl.NDWidget` — `ImageWidget` only browses image stacks |
 | omit `ranges` and accept the auto-range warning if you're visualizing multi-modal data where each array has a different sampling rate | pass `ranges` in real units |
@@ -739,7 +740,9 @@ keep the graphic.
 `fpl.ImageWidget` is a thin convenience over `NDWidget` for browsing one or more **image stacks** —
 arrays shaped `[row, col]`, `[t, row, col]` or `[t, z, row, col]`, grayscale or RGB(A) — with a
 slider for each `t` and `z` dim. It builds an `NDWidget` and one `add_nd_image` per array, so it is
-just `NDWidget` with the boilerplate for this common case filled in.
+just `NDWidget` with the boilerplate for this common case filled in. Like `NDWidget` it only ever
+reads the 2D or 3D slice at the current index, so a lazy array-like (a zarr, an HDF5 dataset, a
+memmap) is viewed out-of-core — the full stack is never read into RAM or VRAM.
 
 ```python
 import numpy as np
@@ -773,5 +776,5 @@ array indices, since the sliders index the arrays directly. Useful attributes: `
 `iw.add_event_handler(fn, "current_index")`.
 
 Use `NDWidget` directly for anything that is not a plain image stack: timeseries or positions,
-several modalities on one reference index, out-of-core windowing (`display_window`), sliders in real
+several modalities on one reference index, sliders in real
 units such as seconds (`slider_maps`), video files (`add_video`), or a custom slicer.
