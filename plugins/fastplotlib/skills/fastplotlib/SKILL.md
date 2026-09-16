@@ -56,6 +56,7 @@ in the `references/` directory next to this file.
 
 | you are working on | read |
 |---|---|
+| a matplotlib-shaped request, or porting matplotlib code | `${CLAUDE_SKILL_DIR}/references/matplotlib-habits.md` |
 | picking and configuring a graphic, collections | `${CLAUDE_SKILL_DIR}/references/graphics.md` |
 | changing data/colors efficiently, events | `${CLAUDE_SKILL_DIR}/references/properties-and-events.md` |
 | figures, subplots, cameras, linking views | `${CLAUDE_SKILL_DIR}/references/figures-and-subplots.md` |
@@ -298,7 +299,7 @@ anything that does not change.
 | loop `add_line` / `add_scatter` / `add_image` to draw N similar things | a collection (`add_line_stack`, `add_scatter_collection`, `add_image_grid`) | N buffers and N draw calls instead of one |
 | `graphic.data = new_array` every frame | `graphic.data[:] = new_array` | reassigning reallocates the GPU buffer |
 | `subplot.clear()` then re-add graphics to update | mutate the existing graphic's properties | throws away all buffers and re-uploads everything |
-| `plt.show()`, `plt.figure()`, `ax.plot()` habits | `figure.show()`, `figure[0, 0].add_line(...)` | this is not matplotlib |
+| `plt.show()`, `plt.figure()`, `ax.plot()` habits | `figure.show()`, `figure[0, 0].add_line(...)` | this is not matplotlib — `references/matplotlib-habits.md` |
 | `fpl.loop.run()` in a notebook | `figure.show()` as the last line of the cell | `run()` blocks the kernel |
 | `figure.show()` not as the last line in a notebook cell | make it the last line, or `display(figure.show())` | nothing renders |
 | `colors=["w"] * n`, `sizes=np.full(n, 5)` | `colors="w"`, `sizes=5` | allocates a per-datapoint buffer for one value |

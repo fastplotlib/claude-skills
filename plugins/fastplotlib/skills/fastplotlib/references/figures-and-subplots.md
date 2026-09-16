@@ -79,13 +79,14 @@ figure = fpl.Figure(
 )
 
 # 3. link only some axes — the idiom for time series
-subplot.controller.add_camera(subplot.camera, include_state={"x", "width"})
+figure[0, 0].controller.add_camera(figure[1, 0].camera, include_state={"x", "width"})
+figure[1, 0].controller.add_camera(figure[0, 0].camera, include_state={"x", "width"})
 ```
 
 Form 3 is what you want for stacked time-series subplots: x pans and zooms together while each subplot
-keeps its own y scale. Add each subplot's camera to each controller you want it to follow. Note the
-call in `add_nd_timeseries` code is on the subplot's *own* camera — that registers the subplot with
-the controller for the restricted state.
+keeps its own y scale. Add the **other** subplot's camera to each controller, once per direction —
+each subplot's own camera is already on its own controller with full state, so passing
+`subplot.camera` to `subplot.controller` does nothing.
 
 ## Working with subplots
 

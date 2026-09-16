@@ -3,7 +3,7 @@
 ## What is on `fpl.`
 
 ```
-Figure  NDWidget  loop  IMGUI
+Figure  NDWidget  ImageWidget  loop  IMGUI
 LineGraphic  InfLineGraphic  ScatterGraphic  ImageGraphic  ImageYUVGraphic
 ImageVolumeGraphic  MeshGraphic  SurfaceGraphic  PolygonGraphic  VectorsGraphic  TextGraphic
 LineCollection  LineStack  ScatterCollection  ScatterStack  ImageCollection  ImageGrid
@@ -17,11 +17,10 @@ enumerate_adapters  select_adapter  print_wgpu_report
 utils  tools  ui  enums  protocols  axes  widgets  layouts  graphics
 ```
 
-Two traps:
+A trap:
 
 - **`fpl.PolygonSelector` does not exist** (it is missing from the selectors `__all__`). Create one
   with `graphic.add_polygon_selector()`.
-- **`fpl.ImageWidget` does not exist.** Use `fpl.NDWidget`.
 
 ## Backends and notebooks
 

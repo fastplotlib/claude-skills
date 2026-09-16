@@ -603,7 +603,7 @@ coordinates. `ndw.figure[name]` and `ndw[name].subplot` are the same `Subplot`.
 |---|---|
 | build ipywidgets/imgui sliders for an nD array | `fpl.NDWidget` |
 | keep your own `current_frame` and write `image.data = movie[i]` in a callback | `add_nd_image` / `add_video` with `slider_maps` |
-| `fpl.ImageWidget` | `fpl.NDWidget` (`ImageWidget` is broken and unexported) |
+| `fpl.ImageWidget` for timeseries, positions, or multi-modal data | `fpl.NDWidget` — `ImageWidget` only browses image stacks |
 | omit `ranges` and accept the auto-range warning if you're visualizing multi-modal data where each array has a different sampling rate | pass `ranges` in real units |
 | convert time to indices on your own, e.g. `int(time * sampling_freq)`, when you have timestamps | `slider_maps={"time": timestamps}` |
 | load a whole session and slice it in numpy | pass the lazy reader, and set `display_window` for positional data |
@@ -734,20 +734,44 @@ returns it.
 If you only need a different data source for an existing representation, subclass the slicer and
 keep the graphic.
 
-## Migrating from `ImageWidget`
+## `ImageWidget`
 
-`fpl.ImageWidget` does not exist. Everything it did is an `NDWidget` feature:
+`fpl.ImageWidget` is a thin convenience over `NDWidget` for browsing one or more **image stacks** —
+arrays shaped `[row, col]`, `[t, row, col]` or `[t, z, row, col]`, grayscale or RGB(A) — with a
+slider for each `t` and `z` dim. It builds an `NDWidget` and one `add_nd_image` per array, so it is
+just `NDWidget` with the boilerplate for this common case filled in.
 
-| old `ImageWidget` | now |
-|---|---|
-| sliders for 3D/4D image stacks | `add_nd_image(...)`, sliders from the extra dims |
-| `window_funcs={"t": (np.mean, 5)}` | `window_funcs={"time": (np.mean, 5.0)}`, in reference units |
-| `frame_apply` | `spatial_func` |
-| `histogram_widget` | `compute_histogram=True` (an `ImguiColorbar`) |
-| `figure_shape`, `names` | `shape`/`extents`/`names` on `NDWidget` |
-| `current_index` | `ndw.indices` |
-| `rgb=True` | `rgb_dim="c"` plus that dim in `display_dims` |
+```python
+import numpy as np
+import fastplotlib as fpl
 
-If a script imports `fpl.ImageWidget`, port it to `NDWidget` rather than trying to make the old
-class work. Some gallery examples and the `ImageWidget` section of the user guide still reference
-it; that is known.
+stack = np.random.rand(500, 30, 512, 512)          # [t, z, row, col]
+iw = fpl.ImageWidget(stack, cmap="gnuplot2", figure_kwargs={"size": (700, 560)})
+iw.show()
+```
+
+One subplot per array; mix grayscale and RGB with `rgb`, and apply a rolling window over `t` or `z`
+frames:
+
+```python
+iw = fpl.ImageWidget(
+    [gray_stack, rgb_stack],                       # a subplot each
+    rgb=[False, True],
+    names=["gray", "rgb"],
+    window_funcs={"t": (np.mean, 5)},              # rolling mean over 5 frames; func takes `axis`
+)
+iw.show()
+```
+
+Full signature: `ImageWidget(data, window_funcs=None, frame_apply=None, figure_shape=None,
+names=None, figure_kwargs=None, histogram_widget=True, rgb=None, cmap="plasma",
+graphic_kwargs=None)`. `frame_apply` is a function (or `{array_index: func}`) applied to each
+displayed frame, e.g. a spatial filter. The window is in **frames** and `current_index` is in raw
+array indices, since the sliders index the arrays directly. Useful attributes: `iw.figure`,
+`iw.managed_graphics`, `iw.data`, `iw.current_index`, `iw.slider_dims`, `iw.window_funcs`,
+`iw.frame_apply`, `iw.cmap`; and `iw.set_data(...)`, `iw.reset_vmin_vmax()`,
+`iw.add_event_handler(fn, "current_index")`.
+
+Use `NDWidget` directly for anything that is not a plain image stack: timeseries or positions,
+several modalities on one reference index, out-of-core windowing (`display_window`), sliders in real
+units such as seconds (`slider_maps`), video files (`add_video`), or a custom slicer.
