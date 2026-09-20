@@ -229,11 +229,17 @@ chunks into RAM, never `np.asarray` them.** Frame timings come from the acquisit
 
 | reader | when |
 |---|---|
-| [`asyncvideo`](https://pypi.org/project/asyncvideo) `AsyncVideoReader(path, buffer_size=512)` | **the default.** Decodes ahead on a background thread, exposes `.shape` and `.time` |
+| [`asyncvideo`](https://pypi.org/project/asyncvideo) `AsyncVideoReader(path, buffer_size=512)` | **the default.** Decodes in its own worker process, exposes `.shape`, `.time` and `.colorspace` |
 | a `decord`-backed lazy reader of your own | fallback when asyncvideo cannot open the file |
 
-`add_video` sends YUV planes straight to the GPU instead of converting each frame to RGB, which is
-why it exists as a separate method.
+It decodes the frame most recently asked for, it does not read ahead. `buffer_size` is how many
+recently decoded frames the worker keeps cached, and a request that hits that cache needs no seek
+or decode. A new request supersedes the one in flight unless it is for the same frame, in which
+case both callers share that decode. Each reader owns one process, so several readers decode in
+parallel. `rgb24`, `yuv420p` and `yuv444p` are supported.
+
+`add_video` uploads the YUV planes directly to the GPU with no local copy, instead of converting
+each frame to RGB, which is why it exists as a separate method.
 
 **Pass the same reader to every graphic that shows that video.** One video in three subplots needs
 one reader, not three: all three views ask for the same frame, so they share that one decode. A

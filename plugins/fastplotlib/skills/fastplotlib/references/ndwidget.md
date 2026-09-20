@@ -227,7 +227,7 @@ extents = {                                   # fractions of the canvas, named s
 }
 ndw = fpl.NDWidget(ranges={"time": (start, stop, 1 / 30)}, extents=extents, size=(1500, 900))
 
-# 2. video — YUV planes straight to the GPU, no per-frame RGB conversion
+# 2. video — the YUV planes are uploaded directly to the GPU with no local copy
 ndw["video"].add_video(
     vid, dims=("time", "m", "n"), display_dims=("m", "n"),
     slider_maps={"time": vid.time}, name="frame",
@@ -611,7 +611,7 @@ coordinates. `ndw.figure[name]` and `ndw[name].subplot` are the same `Subplot`.
 | `display_window=None` on a large dataset/array | a window in seconds; `None` reads everything |
 | pass `compute_histogram` to `add_video` | it has no such argument — a video is never histogrammed |
 | one `NDWidget` per modality with separate sliders | one `ranges`, then `indices=ndw.indices` for the rest |
-| `add_nd_image` for a video file | use `add_video` and the `asyncvideo` library (https://pypi.org/project/asyncvideo/), YUV planes straight to the GPU, no per-frame RGB conversion, order of magnitude faster |
+| `add_nd_image` for a video file | use `add_video` and the `asyncvideo` library (https://pypi.org/project/asyncvideo/), the YUV planes are uploaded directly to the GPU with no local copy, order of magnitude faster |
 | a `for` loop over `ndg.graphic` to set a property every frame | pass the property to `add_nd_*` so it is re-applied by the window machinery |
 | plotting a `[n_cells, n_timepoints]` heatmap array directly as an image | `fpl.utils.heatmap_to_positions` + `add_nd_timeseries(graphic_type=fpl.ImageGraphic)`, so it stays on the shared reference index |
 
